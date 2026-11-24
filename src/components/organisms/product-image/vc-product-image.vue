@@ -1,0 +1,245 @@
+<template>
+  <div class="vc-product-image">
+    <Swiper
+      v-if="images?.length > 1"
+      :modules="[Pagination, Navigation]"
+      :navigation="{
+        nextEl: '[data-btn=btn-next]',
+        prevEl: '[data-btn=btn-prev]',
+        lockClass: 'hidden',
+      }"
+      class="vc-product-image__carousel"
+      rewind
+      @swiper="swiperInstance = $event"
+      @slide-change="slideChanged"
+    >
+      <SwiperSlide v-for="(image, index) in images" :key="index">
+        <VcImage
+          :src="image.url"
+          :alt="alt"
+          size-suffix="md"
+          :class="[
+            'vc-product-image__carousel-img',
+            { 'vc-product-image__carousel-img--clickable': swiperInstance?.allowSlideNext },
+          ]"
+          :lazy="lazy || index > 0"
+          @click="swiperInstance?.slideNext()"
+        />
+      </SwiperSlide>
+
+      <template #container-end>
+        <!-- Prev button -->
+        <button
+          type="button"
+          class="vc-product-image__carousel-btn vc-product-image__carousel-btn--prev"
+          data-btn="btn-prev"
+          :aria-label="$t('ui_kit.accessibility.carousel_previous')"
+        >
+          <span class="vc-product-image__carousel-arrow">
+            <VcIcon name="chevron-left" size="xs" />
+          </span>
+        </button>
+
+        <!-- Next button -->
+        <button
+          type="button"
+          class="vc-product-image__carousel-btn vc-product-image__carousel-btn--next"
+          data-btn="btn-next"
+          :aria-label="$t('ui_kit.accessibility.carousel_next')"
+        >
+          <span class="vc-product-image__carousel-arrow">
+            <VcIcon name="chevron-right" size="xs" />
+          </span>
+        </button>
+
+        <!-- Bullets -->
+        <div v-if="images.length > 1" class="vc-product-image__carousel-bullets">
+          <template v-for="(state, index) in swiperBulletsState" :key="index">
+            <span
+              v-if="index !== 1 || images.length !== 2"
+              :class="[
+                'vc-product-image__carousel-bullet',
+                {
+                  'vc-product-image__carousel-bullet--active': state,
+                },
+              ]"
+            />
+          </template>
+        </div>
+      </template>
+    </Swiper>
+
+    <component :is="to ? 'router-link' : 'div'" v-else :to="to" class="contents">
+      <VcImage :src="images[0]?.url ?? imgSrc" :alt="alt" size-suffix="md" class="vc-product-image__img" :lazy="lazy" />
+    </component>
+
+    <span v-if="!!$slots.default" class="vc-product-image__slot">
+      <slot />
+    </span>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { Pagination, Navigation } from "swiper/modules";
+import { Swiper, SwiperSlide } from "swiper/vue";
+import { ref } from "vue";
+import type { Swiper as SwiperInstance } from "swiper/types";
+import type { RouteLocationRaw } from "vue-router";
+
+interface IProps {
+  images?: VcProductImageType[];
+  alt?: string;
+  imgSrc?: string;
+  lazy?: boolean;
+  to?: RouteLocationRaw;
+}
+
+const props = withDefaults(defineProps<IProps>(), {
+  images: () => [],
+  lazy: true,
+  to: "",
+});
+
+const swiperInstance = ref<SwiperInstance>();
+const swiperBulletsState = ref<boolean[]>([true, false, false]);
+
+function slideChanged(swiper: SwiperInstance) {
+  const activeIndex: number = swiper.activeIndex;
+  const lastIndex: number = props.images?.length ? props.images.length - 1 : 0;
+
+  if (!activeIndex) {
+    // first bullet active
+    swiperBulletsState.value = [true, false, false];
+  } else if (activeIndex === lastIndex) {
+    // last bullet active
+    swiperBulletsState.value = [false, false, true];
+  } else {
+    // middle bullet active
+    swiperBulletsState.value = [false, true, false];
+  }
+}
+</script>
+
+<style lang="scss">
+@use "@/ui-kit/styles/focus-ring" as *;
+
+.vc-product-image {
+  $self: &;
+  $carouselImg: "";
+  $img: "";
+
+  --radius: var(--vc-product-image-radius, var(--vc-radius, 0.5rem));
+
+  @apply relative z-0 max-w-full aspect-square border border-neutral-200 rounded-[--radius];
+
+  &__carousel {
+    @apply h-full w-full;
+  }
+
+  &__carousel-img {
+    $carouselImg: &;
+
+    --vc-image-object-fit: contain;
+    --vc-image-fallback-object-fit: scale-down;
+
+    @apply w-full aspect-square select-none rounded-[--radius];
+
+    &--clickable {
+      @apply cursor-pointer;
+    }
+  }
+
+  &__carousel-btn {
+    @apply absolute top-0 z-[2] hidden h-full cursor-pointer items-center opacity-0 transition-opacity hover:opacity-100 md:flex;
+
+    // Revealed on hover only, so a keyboard user would land on a fully transparent
+    // control. The swiper clips an outset ring (measured: zero clearance on three sides).
+    &:focus-visible {
+      @apply opacity-100;
+
+      @include focus-ring($inset: true);
+    }
+
+    &--prev {
+      @apply left-0 pl-1 pr-5;
+    }
+
+    &--next {
+      @apply right-0 pr-1 pl-5;
+    }
+  }
+
+  &__carousel-arrow {
+    @apply flex h-6 w-6 items-center justify-center rounded-full bg-additional-50;
+
+    .vc-icon {
+      @apply text-neutral-400;
+    }
+  }
+
+  &__carousel-bullets {
+    @apply absolute bottom-0 left-0 z-[1] flex w-full justify-center gap-1 py-2;
+  }
+
+  &__carousel-bullet {
+    @apply inline-block h-2 w-2 rounded-full border box-border border-neutral-400 bg-additional-50;
+
+    &--active {
+      @apply border-neutral-400 bg-neutral-400 outline outline-[1px] outline-additional-50;
+    }
+  }
+
+  &__img {
+    $img: &;
+
+    --vc-image-object-fit: contain;
+    --vc-image-fallback-object-fit: scale-down;
+
+    @apply w-full aspect-square rounded-[--radius];
+  }
+
+  &__slot {
+    @apply absolute inset-0;
+  }
+
+  @at-root .vc-product-card {
+    #{$self} {
+      grid-area: image;
+
+      @apply self-start place-content-stretch;
+    }
+
+    &--view-mode {
+      &--grid {
+        #{$self} {
+          @apply mb-4 aspect-[220/196];
+        }
+
+        #{$carouselImg} {
+          @apply aspect-[220/196];
+        }
+
+        #{$img} {
+          @apply aspect-[220/196];
+        }
+      }
+
+      &--list #{$self} {
+        @apply size-[4.5rem];
+
+        @container (min-width: theme("containers.2xl")) {
+          @apply me-3 size-[5.375rem];
+        }
+      }
+
+      &--item #{$self} {
+        @apply size-[4.5rem];
+
+        @container (min-width: theme("containers.2xl")) {
+          @apply me-3 size-16;
+        }
+      }
+    }
+  }
+}
+</style>

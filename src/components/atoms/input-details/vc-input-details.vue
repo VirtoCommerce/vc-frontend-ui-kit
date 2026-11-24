@@ -1,0 +1,111 @@
+<template>
+  <div
+    :id="id"
+    :class="[
+      'vc-input-details',
+      {
+        'vc-input-details--hide-empty': !showEmpty,
+        'vc-input-details--error': error,
+        'vc-input-details--single-line': singleLine,
+      },
+    ]"
+  >
+    <!-- Message -->
+    <template v-if="message">
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div v-if="!singleLine" v-html-safe="message" class="vc-input-details__message"></div>
+
+      <VcTooltip v-else class="vc-input-details__tooltip-container" placement="bottom-start" enable-teleport>
+        <template #trigger>
+          <div class="vc-input-details__message">{{ message }}</div>
+        </template>
+
+        <template #content>
+          {{ message }}
+        </template>
+      </VcTooltip>
+    </template>
+
+    <!-- Counter -->
+    <div
+      v-if="counter"
+      :class="[
+        'vc-input-details__counter',
+        {
+          'vc-input-details__counter--limit': isAtLimit,
+        },
+      ]"
+      :role="isAtLimit ? 'status' : undefined"
+      :aria-live="isAtLimit ? 'polite' : undefined"
+    >
+      {{ textLength }}<template v-if="maxLength"> / {{ maxLength }}</template>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+
+interface IProps {
+  id?: string;
+  message?: string;
+  singleLine?: boolean;
+  error?: boolean;
+  counter?: boolean;
+  showEmpty?: boolean;
+  textLength?: number;
+  maxLength?: number | string;
+}
+
+const props = withDefaults(defineProps<IProps>(), {
+  textLength: 0,
+});
+
+const isAtLimit = computed(() => {
+  if (!props.maxLength) {
+    return false;
+  }
+  return props.textLength >= Number(props.maxLength);
+});
+</script>
+
+<style lang="scss">
+.vc-input-details {
+  $error: "";
+  $singleLine: "";
+
+  @apply flex mt-1 gap-2 min-h-3 text-xxs;
+
+  &--error {
+    $error: &;
+  }
+
+  &--single-line {
+    $singleLine: &;
+  }
+
+  &--hide-empty {
+    @apply empty:hidden;
+  }
+
+  &__message {
+    @apply grow text-neutral-500;
+
+    #{$error} & {
+      @apply text-danger;
+    }
+
+    #{$singleLine} & {
+      @apply line-clamp-1;
+    }
+  }
+
+  &__counter {
+    @apply ms-auto text-right whitespace-nowrap;
+
+    &--limit {
+      @apply text-danger;
+    }
+  }
+}
+</style>

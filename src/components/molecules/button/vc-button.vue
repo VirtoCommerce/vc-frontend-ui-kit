@@ -1,0 +1,528 @@
+<template>
+  <component
+    :is="componentTag"
+    ref="elementRef"
+    v-bind="attrs"
+    :target="target"
+    :type="componentTag === 'button' ? type : null"
+    :disabled="!enabled"
+    :title="title"
+    :aria-label="ariaLabel || title"
+    :aria-busy="loading || undefined"
+    :tabindex="tabindex"
+    :class="[
+      'vc-button group',
+      `vc-button--size--${_size}`,
+      `vc-button--color--${color}`,
+      `vc-button--${canonicalVariant}--${color}`,
+      {
+        'vc-button--icon': !!icon,
+        'vc-button--square': square,
+        'vc-button--disabled': !enabled,
+        'vc-button--loading': loading,
+        'vc-button--truncate': truncate,
+        'vc-button--full-width': fullWidth,
+        'vc-button--no-wrap': noWrap,
+      },
+    ]"
+    @click="enabled ? $emit('click', $event) : null"
+  >
+    <span class="vc-button__content">
+      <VcIcon v-if="icon && typeof icon === 'string'" class="vc-button__icon" :name="icon" :variant="iconVariant" />
+
+      <template v-else>
+        <span v-if="$slots.prepend || prependIcon" class="vc-button__prepend">
+          <slot name="prepend">
+            <VcIcon v-if="prependIcon" class="vc-button__icon" :name="prependIcon" :variant="iconVariant" />
+          </slot>
+        </span>
+
+        <span v-if="$slots.default" class="vc-button__slot">
+          <slot />
+        </span>
+
+        <span v-if="$slots.append || appendIcon" class="vc-button__append">
+          <slot name="append">
+            <VcIcon v-if="appendIcon" class="vc-button__icon" :name="appendIcon" :variant="iconVariant" />
+          </slot>
+        </span>
+      </template>
+    </span>
+
+    <span v-if="loading" class="vc-button__loader">
+      <slot name="loader">
+        <span class="vc-button__loader-icon"></span>
+      </slot>
+    </span>
+  </component>
+</template>
+
+<script setup lang="ts">
+import { computed, inject, ref } from "vue";
+import { resolveVariant } from "../../../utilities/variant-compat";
+import { vcDialogKey } from "../dialog/vc-dialog-context";
+import type { IconVariantType } from "@/ui-kit/utilities";
+import type { ComponentPublicInstance } from "vue";
+import type { RouteLocationRaw } from "vue-router";
+
+export interface IEmits {
+  (event: "click", value: MouseEvent): void;
+}
+
+interface IAttributes {
+  to?: RouteLocationRaw | null;
+  href?: string;
+}
+
+interface IProps {
+  color?: VcButtonColorType;
+  size?: VcButtonSizeType;
+  variant?: VcButtonVariantType;
+  type?: VcButtonTypeType;
+  disabled?: boolean;
+  loading?: boolean;
+  to?: RouteLocationRaw | null;
+  externalLink?: string;
+  target?: "_self" | "_blank";
+  prependIcon?: string;
+  appendIcon?: string;
+  icon?: boolean | string;
+  title?: string;
+  ariaLabel?: string;
+  truncate?: boolean;
+  fullWidth?: boolean;
+  noWrap?: boolean;
+  minWidth?: string;
+  tag?: string;
+  iconSize?: string;
+  iconVariant?: IconVariantType;
+  square?: boolean;
+  tabindex?: string | number;
+}
+
+defineEmits<IEmits>();
+
+const props = withDefaults(defineProps<IProps>(), {
+  color: "primary",
+  variant: "solid",
+  type: "button",
+  disabled: false,
+  loading: false,
+  to: null,
+  truncate: false,
+  fullWidth: false,
+  noWrap: false,
+  tag: "",
+  tabindex: 0,
+});
+
+const canonicalVariant = computed(() => resolveVariant("VcButton", props.variant));
+
+const inputContext = inject<VcInputContextType | null>("inputContext", null);
+const dialogContext = inject(vcDialogKey, { size: ref("md") });
+
+const _size = computed(() => {
+  if (props.size) {
+    return props.size;
+  }
+
+  const inputSize = inputContext?.size.value;
+  const dialogSize = dialogContext?.size.value;
+
+  if (inputSize) {
+    if (inputSize === "xs") {
+      return "xxs";
+    }
+
+    if (inputSize === "sm") {
+      return "xs";
+    }
+
+    return "sm";
+  }
+
+  if (dialogSize) {
+    return dialogSize;
+  }
+
+  return "md";
+});
+
+const enabled = computed<boolean>(() => !props.disabled && !props.loading);
+const isRouterLink = computed<boolean>(() => !!props.to && enabled.value);
+const isExternalLink = computed<boolean>(() => !!props.externalLink && enabled.value);
+
+const target = computed<string | undefined>(() =>
+  props.target && (isExternalLink.value || isRouterLink.value) ? props.target : undefined,
+);
+
+const componentTag = computed(() => {
+  if (props.tag) {
+    return props.tag;
+  }
+
+  if (isRouterLink.value) {
+    return "router-link";
+  }
+
+  if (isExternalLink.value) {
+    return "a";
+  }
+
+  return "button";
+});
+
+const attrs = computed(() => {
+  const attributes: IAttributes = {};
+
+  if (componentTag.value === "router-link") {
+    attributes.to = props.to;
+  }
+
+  if (componentTag.value === "a") {
+    attributes.href = props.externalLink;
+  }
+
+  return attributes;
+});
+
+const elementRef = ref<HTMLElement | ComponentPublicInstance | null>(null);
+
+function getElement(): HTMLElement | null {
+  const el = elementRef.value;
+  if (!el) {
+    return null;
+  }
+
+  // Native HTML elements (button, a, etc.)
+  if (el instanceof HTMLElement) {
+    return el;
+  }
+
+  // Vue component instances (RouterLink, custom components via tag prop)
+  const rootEl = el.$el;
+  return rootEl instanceof HTMLElement ? rootEl : null;
+}
+
+function focus(): void {
+  getElement()?.focus();
+}
+
+function blur(): void {
+  getElement()?.blur();
+}
+
+defineExpose({
+  focus,
+  blur,
+  el: computed(() => getElement()),
+});
+</script>
+
+<style lang="scss">
+.vc-button {
+  --props-min-width: v-bind(props.minWidth);
+  --props-icon-size: v-bind(props.iconSize);
+  --radius: var(--vc-button-radius, var(--vc-radius, 0.5rem));
+  --min-w: var(--props-min-width, var(--vc-button-min-width));
+
+  --vc-icon-size: var(--vc-button-icon-size, var(--props-icon-size, var(--icon-size)));
+  --vc-icon-color: currentColor;
+
+  $colors: primary, secondary, success, info, neutral, warning, danger, accent;
+
+  $prepend: "";
+  $append: "";
+  $truncate: "";
+  $disabled: "";
+  $loading: "";
+  $loaderIcon: "";
+  $noWrap: "";
+
+  // Base rules in :where(): a kit parent's single class beats them in any load order
+  :where(&) {
+    @apply relative inline-block px-[--px] min-w-[--min-w] rounded-[--radius] border-2 select-none text-center bg-[--bg-color] border-[--border-color] text-[--text-color];
+
+    appearance: button;
+
+    @media (prefers-reduced-motion: no-preference) {
+      @apply transition-colors;
+    }
+  }
+
+  &--truncate {
+    $truncate: &;
+  }
+
+  &--disabled {
+    $disabled: &;
+  }
+
+  &--loading {
+    $loading: &;
+  }
+
+  :where(&--icon) {
+    @apply flex-none p-0 h-[--size] min-w-[var(--min-w,var(--size))];
+  }
+
+  :where(&--square) {
+    @apply flex-none px-0.5 h-[--size] min-w-[var(--min-w,var(--size))];
+  }
+
+  :where(&--full-width) {
+    @apply w-full;
+  }
+
+  &--no-wrap {
+    $noWrap: &;
+  }
+
+  &__loader {
+    @apply hidden;
+
+    #{$loading} & {
+      @apply absolute inset-0 flex justify-center items-center;
+    }
+  }
+
+  &__loader-icon {
+    $loaderIcon: &;
+
+    @apply block rounded-full animate-spin border-2 size-[--vc-icon-size] border-[--loader-border] border-r-[--loader-border-r];
+  }
+
+  &--size {
+    &--xxs {
+      --size: 1.625rem;
+      --line-height: 0.875rem;
+      --icon-size: 0.875rem;
+      --px: theme("padding[2.5]");
+
+      @apply text-xs/[--line-height] font-bold;
+    }
+
+    &--xs {
+      --size: 2rem;
+      --line-height: 0.875rem;
+      --icon-size: 1rem;
+      --px: theme("padding.3");
+
+      @apply text-xs/[--line-height] font-bold;
+    }
+
+    &--sm {
+      --size: 2.375rem;
+      --line-height: 1rem;
+      --icon-size: 1.25rem;
+      --px: theme("padding[3.5]");
+
+      @apply text-sm/[--line-height] font-bold;
+      text-transform: var(--vc-button-text-transform, none);
+    }
+
+    &--md {
+      --size: 2.75rem;
+      --line-height: 1.25rem;
+      --icon-size: 1.5rem;
+      --px: theme("padding.4");
+
+      @apply text-base/[--line-height] font-bold;
+      text-transform: var(--vc-button-text-transform, none);
+    }
+
+    &--lg {
+      --size: 3.25rem;
+      --line-height: 1.5rem;
+      --icon-size: 1.75rem;
+      --px: theme("padding.5");
+
+      @apply text-lg/[--line-height] font-bold;
+      text-transform: var(--vc-button-text-transform, none);
+    }
+  }
+
+  $variants: solid, soft, outline, surface, ghost, tonal;
+
+  @each $variant in $variants {
+    @each $color in $colors {
+      &--#{$variant}--#{$color} {
+        --bg-color: var(--vc-button-#{$variant}-#{$color}-bg);
+        --border-color: var(--vc-button-#{$variant}-#{$color}-border);
+        --text-color: var(--vc-button-#{$variant}-#{$color}-text);
+        --vc-icon-color: var(--vc-button-#{$variant}-#{$color}-icon);
+        --loader-border: color-mix(in srgb, var(--vc-button-#{$variant}-#{$color}-text), transparent 70%);
+        --loader-border-r: var(--vc-button-#{$variant}-#{$color}-text);
+      }
+    }
+  }
+
+  // Hover — color-mix based, derived from current variant colors. No per-color overrides.
+  @each $color in $colors {
+    &--solid--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-solid-#{$color}-bg), black 15%);
+      --border-color: var(--bg-color);
+    }
+
+    &--soft--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-soft-#{$color}-bg), black 8%);
+      --border-color: var(--bg-color);
+    }
+
+    &--surface--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 80%);
+      --border-color: var(--bg-color);
+    }
+
+    &--outline--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 80%);
+    }
+
+    &--ghost--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 80%);
+      --border-color: var(--bg-color);
+      --text-color: color-mix(in srgb, var(--vc-button-ghost-#{$color}-text), black 8%);
+    }
+
+    &--tonal--#{$color}:hover:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-tonal-#{$color}-bg), black 8%);
+    }
+  }
+
+  // Pressed — the same mix as hover, one step further. Text takes the step too wherever the
+  // darker fill would otherwise eat its contrast. Must stay after the hover block: same
+  // specificity, source order decides.
+  @each $color in $colors {
+    &--solid--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-solid-#{$color}-bg), black 30%);
+      --border-color: var(--bg-color);
+    }
+
+    &--soft--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-soft-#{$color}-bg), black 16%);
+      --border-color: var(--bg-color);
+      --text-color: color-mix(in srgb, var(--vc-button-soft-#{$color}-text), black 15%);
+    }
+
+    // Pale fills: the darker tint eats text contrast, so the text takes the step too.
+    &--surface--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 70%);
+      --border-color: var(--bg-color);
+      --text-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), black 8%);
+    }
+
+    &--outline--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 70%);
+      --text-color: color-mix(in srgb, var(--vc-button-outline-#{$color}-text), black 8%);
+    }
+
+    &--ghost--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-surface-#{$color}-text), white 70%);
+      --border-color: var(--bg-color);
+      --text-color: color-mix(in srgb, var(--vc-button-ghost-#{$color}-text), black 16%);
+    }
+
+    &--tonal--#{$color}:active:not(#{$loading}, #{$disabled}) {
+      --bg-color: color-mix(in srgb, var(--vc-button-tonal-#{$color}-bg), black 16%);
+      --text-color: color-mix(in srgb, var(--vc-button-tonal-#{$color}-text), black 15%);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    // The press should land at once; the release keeps the base duration.
+    &:active:not(#{$loading}, #{$disabled}) {
+      @apply duration-75;
+    }
+  }
+
+  &#{$disabled}:not(#{$loading}),
+  &:disabled#{$disabled}:not(#{$loading}) {
+    --vc-icon-color: var(--color-neutral-400);
+    --text-color: var(--color-neutral-600);
+
+    &[class*="--solid--"] {
+      --bg-color: var(--color-neutral-200);
+      --border-color: var(--color-neutral-200);
+    }
+
+    &[class*="--surface--"] {
+      --bg-color: var(--color-neutral-200);
+      --border-color: var(--color-neutral-200);
+    }
+
+    &[class*="--outline--"] {
+      --border-color: var(--color-neutral-300);
+    }
+
+    &[class*="--soft--"] {
+      --bg-color: var(--color-neutral-100);
+      --border-color: var(--color-neutral-100);
+    }
+
+    &[class*="--tonal--"] {
+      --bg-color: var(--color-neutral-100);
+      --border-color: var(--color-neutral-300);
+    }
+  }
+
+  &__content {
+    @apply grid grid-flow-col justify-center items-center min-h-[calc(var(--size)-0.25rem)];
+
+    #{$loading} & {
+      @apply opacity-0;
+    }
+  }
+
+  &__slot {
+    @apply max-w-full;
+
+    word-break: break-word;
+
+    #{$truncate} & {
+      @apply grow min-w-0 truncate;
+    }
+
+    #{$noWrap} & {
+      @apply whitespace-nowrap;
+    }
+
+    &:empty {
+      @apply hidden;
+    }
+  }
+
+  &__prepend {
+    $prepend: &;
+
+    // centres whatever the slot holds; an icon smaller than the text line would otherwise
+    // sit on the line box top
+    @apply flex items-center;
+
+    &:empty {
+      @apply hidden;
+    }
+  }
+
+  &__append {
+    $append: &;
+
+    // centres whatever the slot holds; an icon smaller than the text line would otherwise
+    // sit on the line box top
+    @apply flex items-center;
+
+    &:empty {
+      @apply hidden;
+    }
+  }
+
+  &__icon {
+    #{$prepend} & {
+      @apply me-2;
+    }
+
+    #{$append} & {
+      @apply ms-2;
+    }
+  }
+}
+</style>

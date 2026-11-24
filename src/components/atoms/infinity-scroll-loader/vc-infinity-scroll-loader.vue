@@ -1,0 +1,95 @@
+<template>
+  <div ref="target" :data-test-id="testId" class="vc-infinity-scroll-loader">
+    <slot v-if="loading" name="loader">
+      <VcLoader data-test-id="category-products-loader" />
+    </slot>
+
+    <slot v-else name="loaded">
+      <VcIcon
+        v-if="isPageLimitReached || pageNumber >= pagesCount"
+        class="vc-infinity-scroll-loader__icon"
+        name="badge-check"
+      />
+
+      <span v-if="isPageLimitReached">{{ $t("ui_kit.reach_limit.page_limit_filters") }}</span>
+
+      <span v-else-if="pageNumber >= pagesCount" data-test-id="end-list-label">
+        {{ $t("ui_kit.reach_limit.end_list") }}
+      </span>
+    </slot>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, inject, onBeforeUnmount, onMounted, shallowRef, watch } from "vue";
+import { vcScrollbarKey } from "../scrollbar/vc-scrollbar-context";
+
+const emit = defineEmits<IEmits>();
+
+const props = withDefaults(defineProps<IProps>(), {
+  loading: true,
+  viewport: null,
+  distance: 0,
+});
+
+interface IEmits {
+  (event: "visible"): void;
+}
+
+interface IProps {
+  loading?: boolean;
+  viewport?: Element | Document | null;
+  distance?: string | number;
+  isPageLimitReached?: boolean;
+  pagesCount: number;
+  pageNumber: number;
+  testId?: string;
+}
+
+const scrollbarContext = inject(vcScrollbarKey, null);
+
+const resolvedViewport = computed(() => props.viewport ?? scrollbarContext?.el.value ?? null);
+
+let observer: IntersectionObserver | null = null;
+const target = shallowRef<HTMLElement | null>(null);
+
+function intersectionCallback([entry]: IntersectionObserverEntry[]): void {
+  if (entry.isIntersecting) {
+    emit("visible");
+  }
+}
+
+function initObserver(): void {
+  if (observer) {
+    observer.disconnect();
+  }
+
+  observer = new IntersectionObserver(intersectionCallback, {
+    root: resolvedViewport.value,
+    rootMargin: `${props.distance}px`,
+  });
+
+  observer.observe(target.value!);
+}
+
+onMounted(() => {
+  initObserver();
+});
+
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  observer = null;
+});
+
+watch([resolvedViewport, () => props.distance], initObserver);
+</script>
+
+<style lang="scss">
+.vc-infinity-scroll-loader {
+  @apply flex items-center justify-center gap-2 text-base;
+
+  &__icon {
+    @apply size-7 text-primary;
+  }
+}
+</style>

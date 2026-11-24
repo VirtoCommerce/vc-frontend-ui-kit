@@ -1,0 +1,79 @@
+<template>
+  <VcPopover
+    class="vc-tooltip"
+    :placement="placement"
+    :strategy="strategy"
+    :hover="hover"
+    :disabled="disabled"
+    :offset-options="offsetOptions"
+    :flip-options="flipOptions"
+    :shift-options="shiftOptions"
+    :width="width"
+    role="tooltip"
+    :enable-teleport="enableTeleport"
+    :teleport-selector="teleportSelector"
+    shadow
+  >
+    <template v-if="$slots.default" #default="{ opened, triggerProps }">
+      <slot
+        :opened="opened"
+        :trigger-props="{ ...triggerProps, 'aria-describedby': tooltipContentId }"
+        :tooltip-id="tooltipContentId"
+      />
+    </template>
+
+    <template v-else-if="$slots.trigger" #trigger>
+      <slot name="trigger" />
+    </template>
+
+    <template #content>
+      <div :id="tooltipContentId" class="vc-tooltip__content">
+        <slot name="content" />
+      </div>
+    </template>
+  </VcPopover>
+</template>
+
+<script setup lang="ts">
+import { useComponentId } from "@/ui-kit/composables";
+export interface IEmits {
+  (event: "shown", isShown: boolean): void;
+}
+
+export interface IProps {
+  placement?: VcTooltipPlacementType;
+  strategy?: VcTooltipStrategyType;
+  flipOptions?: VcTooltipFlipOptionsType;
+  offsetOptions?: VcTooltipOffsetOptionsType;
+  shiftOptions?: VcTooltipShiftOptionsType;
+  disabled?: boolean;
+  hover?: boolean;
+  width?: string;
+  enableTeleport?: boolean;
+  teleportSelector?: string;
+}
+
+defineEmits<IEmits>();
+
+withDefaults(defineProps<IProps>(), {
+  placement: "bottom",
+  offsetOptions: 6,
+  hover: true,
+  width: "max-content",
+});
+
+const tooltipContentId = useComponentId("vc-tooltip");
+</script>
+
+<style lang="scss">
+.vc-tooltip {
+  .vc-popover__body:has(&__content) {
+    --vc-popover-radius: var(--vc-tooltip-radius, var(--vc-radius, 0.5rem));
+    --vc-popover-bg-color: var(--vc-tooltip-bg-color, var(--color-neutral-50));
+  }
+
+  &__content {
+    @apply max-w-full py-1.5 px-3.5 text-xs text-neutral-900;
+  }
+}
+</style>

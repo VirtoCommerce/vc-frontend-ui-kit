@@ -1,0 +1,259 @@
+<template>
+  <div
+    v-if="pages > 1"
+    ref="paginationRef"
+    :class="[
+      'vc-pagination',
+      {
+        'vc-pagination--compact': compact,
+        'vc-pagination--wrapped': isWrapped,
+      },
+    ]"
+  >
+    <div class="vc-pagination__container">
+      <div ref="pagesRef" class="vc-pagination__pages">
+        <component
+          :is="item > 0 && page !== item ? 'button' : 'span'"
+          v-for="(item, index) in visiblePages"
+          :key="index"
+          :type="item > 0 && page !== item ? 'button' : null"
+          :class="[
+            'vc-pagination__page',
+            {
+              'vc-pagination__page--active': item && page === item,
+              'vc-pagination__page--ellipsis': !item,
+            },
+          ]"
+          @click="setPage(item)"
+        >
+          {{ item || "..." }}
+        </component>
+      </div>
+
+      <div class="vc-pagination__nav">
+        <VcButton
+          ref="prevButtonRef"
+          class="vc-pagination__button vc-pagination__button--prev"
+          color="secondary"
+          variant="soft"
+          size="sm"
+          :disabled="page === 1"
+          no-wrap
+          :icon="compact"
+          :aria-label="$t('ui_kit.pagination.previous')"
+          @click="setPage(page - 1)"
+        >
+          <VcIcon name="chevron-left" />
+
+          <span v-if="!compact">{{ $t("ui_kit.pagination.previous") }}</span>
+        </VcButton>
+
+        <VcButton
+          ref="nextButtonRef"
+          class="vc-pagination__button vc-pagination__button--next"
+          color="secondary"
+          variant="soft"
+          size="sm"
+          :disabled="page === pages"
+          no-wrap
+          :icon="compact"
+          :aria-label="$t('ui_kit.pagination.next')"
+          @click="setPage(page + 1)"
+        >
+          <span v-if="!compact">{{ $t("ui_kit.pagination.next") }}</span>
+
+          <VcIcon name="chevron-right" />
+        </VcButton>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useElementBounding } from "@vueuse/core";
+import { computed, ref } from "vue";
+
+interface IEmits {
+  (event: "update:page", page: number): void;
+}
+
+interface IProps {
+  page?: number;
+  pages?: number;
+  scrollTarget?: HTMLElement;
+  scrollOffset?: number;
+  compact?: boolean;
+}
+
+const emit = defineEmits<IEmits>();
+
+const props = withDefaults(defineProps<IProps>(), {
+  page: 1,
+  pages: 0,
+  scrollOffset: 20,
+});
+
+const paginationRef = ref<HTMLDivElement | null>(null);
+const pagesRef = ref<HTMLDivElement | null>(null);
+const prevButtonRef = ref<HTMLButtonElement | null>(null);
+const nextButtonRef = ref<HTMLButtonElement | null>(null);
+
+const { width: paginationWidth } = useElementBounding(paginationRef);
+const { width: pagesWidth } = useElementBounding(pagesRef);
+const { width: prevButtonWidth } = useElementBounding(prevButtonRef);
+const { width: nextButtonWidth } = useElementBounding(nextButtonRef);
+
+const isWrapped = computed(() => {
+  return paginationWidth.value < pagesWidth.value + prevButtonWidth.value + nextButtonWidth.value;
+});
+
+const visiblePages = computed(() => {
+  if (props.pages <= 9) {
+    return Array.from({ length: props.pages }, (_, i) => i + 1);
+  }
+
+  const pages = [];
+
+  if (props.page <= 5) {
+    for (let i = 1; i <= 7; i++) {
+      pages.push(i);
+    }
+
+    pages.push(NaN);
+    pages.push(props.pages);
+  } else if (props.page >= props.pages - 4) {
+    pages.push(1);
+    pages.push(NaN);
+
+    for (let i = props.pages - 6; i <= props.pages; i++) {
+      pages.push(i);
+    }
+  } else {
+    pages.push(1);
+    pages.push(NaN);
+
+    for (let i = props.page - 2; i <= props.page + 2; i++) {
+      pages.push(i);
+    }
+
+    pages.push(NaN);
+    pages.push(props.pages);
+  }
+
+  return pages;
+});
+
+function scrollToTop() {
+  if (props.scrollTarget) {
+    const topPosition = props.scrollTarget.getBoundingClientRect().top + window.scrollY - props.scrollOffset;
+    window.scrollTo({ top: topPosition, behavior: "smooth" });
+  }
+}
+
+const setPage = (page: number) => {
+  if (page) {
+    emit("update:page", page);
+
+    scrollToTop();
+  }
+};
+</script>
+
+<style lang="scss">
+.vc-pagination {
+  $self: &;
+  $compact: "";
+  $wrapped: "";
+
+  // Override the two knobs as a pair: the ink default follows the palette and flips in dark.
+  --page-active-bg: var(--vc-pagination-page-active-bg, theme("colors.primary.500"));
+  --page-active-text: var(--vc-pagination-page-active-text, theme("colors.additional.50"));
+
+  @apply flex max-w-full;
+
+  &--compact {
+    $compact: &;
+  }
+
+  &--wrapped {
+    $wrapped: &;
+  }
+
+  &__container {
+    @apply flex items-center gap-x-3 gap-y-1.5;
+
+    #{$wrapped} & {
+      @apply flex-wrap justify-center;
+    }
+  }
+
+  &__pages {
+    @apply order-2 flex justify-center gap-[var(--vc-pagination-pages-gap,normal)];
+
+    #{$wrapped} & {
+      @apply flex-wrap;
+    }
+  }
+
+  &__page {
+    --radius: var(--vc-pagination-page-radius, theme("borderRadius.DEFAULT"));
+    // No ring until its width token is set; the colour falls back to the theme's default border colour.
+    --border-color: var(--vc-pagination-page-border-color, theme("borderColor.DEFAULT"));
+    --hover-border-color: var(--vc-pagination-page-hover-border-color, var(--border-color));
+    --ring-color: var(--border-color);
+
+    @apply flex items-center justify-center min-w-[2rem] h-8 p-1 rounded-[--radius] text-xs font-bold
+      border-[length:var(--vc-pagination-page-border-width,0)] border-solid border-[color:var(--ring-color)];
+
+    &[type="button"] {
+      @apply bg-additional-50 text-neutral-950;
+    }
+
+    &:focus-visible {
+      position: relative;
+      z-index: 1;
+    }
+
+    &:hover {
+      --ring-color: var(--hover-border-color);
+
+      @apply bg-primary-50;
+    }
+
+    &--active {
+      --ring-color: var(--vc-pagination-page-active-border-color, var(--border-color));
+
+      @apply pointer-events-none;
+
+      background-color: var(--page-active-bg);
+      color: var(--page-active-text);
+    }
+
+    &--ellipsis {
+      @apply pointer-events-none border-0 text-[color:var(--vc-pagination-ellipsis-color,currentColor)];
+    }
+  }
+
+  &__nav {
+    @apply contents;
+
+    #{$wrapped} & {
+      @apply order-last flex flex-wrap gap-3;
+    }
+  }
+
+  &__button {
+    #{$self}:not(#{$compact}) & {
+      @apply min-w-[6.5rem];
+    }
+
+    &--prev {
+      @apply order-1;
+    }
+
+    &--next {
+      @apply order-3;
+    }
+  }
+}
+</style>

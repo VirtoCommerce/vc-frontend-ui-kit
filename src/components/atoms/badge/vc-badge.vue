@@ -1,0 +1,185 @@
+<template>
+  <span
+    :class="[
+      'vc-badge',
+      `vc-badge--size--${size}${$slots.default ? '' : '--dot'}`,
+      `vc-badge--${canonicalVariant}--${color}`,
+      {
+        'vc-badge--dot': !$slots.default,
+        'vc-badge--rounded': rounded,
+        'vc-badge--truncate': truncate,
+        'vc-badge--nowrap': nowrap,
+        'vc-badge--square': square,
+      },
+    ]"
+  >
+    <span v-if="$slots.default" class="vc-badge__content">
+      <slot />
+    </span>
+  </span>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import { resolveVariant } from "../../../utilities/variant-compat";
+
+interface IProps {
+  color?: VcBadgeColorType;
+  size?: VcBadgeSizeType;
+  variant?: VcBadgeVariantType;
+  rounded?: boolean;
+  truncate?: boolean;
+  nowrap?: boolean;
+  square?: boolean;
+  maxWidth?: string;
+}
+
+const props = withDefaults(defineProps<IProps>(), {
+  color: "primary",
+  size: "md",
+  variant: "solid",
+});
+
+const canonicalVariant = computed(() => resolveVariant("VcBadge", props.variant));
+</script>
+
+<style lang="scss">
+.vc-badge {
+  $colors: primary, secondary, neutral, info, success, warning, danger, accent;
+
+  $truncate: "";
+  $square: "";
+  $dot: "";
+
+  --props-max-width: v-bind(maxWidth);
+  --max-width: var(--props-max-width, var(--vc-badge-max-width, 100%));
+  --radius: var(--vc-badge-radius, var(--vc-radius, 0.5rem));
+
+  @apply flex-none inline-flex align-middle min-h-[--size] min-w-[--size] max-w-[--max-width] border rounded-[--radius] font-bold bg-[--bg-color] border-[--border-color] text-[--text-color];
+
+  &--size {
+    &--xs {
+      --size: 1rem;
+      --vc-icon-size: 0.5rem;
+      --gap: 0.25rem;
+
+      @apply pb-px px-[0.188rem] text-xxs/[1];
+
+      &--dot {
+        @apply size-1.5;
+      }
+    }
+
+    &--sm {
+      --size: 1.125rem;
+      --vc-icon-size: 0.75rem;
+      --gap: 0.25rem;
+
+      @apply px-[0.188rem] text-xs/[1.2];
+
+      &--dot {
+        @apply size-2;
+      }
+    }
+
+    &--md {
+      --size: 1.375rem;
+      --vc-icon-size: 0.875rem;
+      --gap: 0.375rem;
+
+      @apply px-1 text-sm/[1.2];
+
+      &--dot {
+        @apply size-2.5;
+      }
+    }
+
+    &--lg {
+      --size: 1.625rem;
+      --vc-icon-size: 1rem;
+      --gap: 0.375rem;
+
+      @apply px-1 text-base/[1.25];
+
+      &--dot {
+        @apply size-3;
+      }
+    }
+  }
+
+  &--rounded {
+    @apply rounded-full;
+  }
+
+  &--nowrap {
+    @apply whitespace-nowrap;
+  }
+
+  &--truncate {
+    $truncate: &;
+  }
+
+  &--square {
+    $square: &;
+
+    @apply p-0;
+  }
+
+  &--dot {
+    $dot: &;
+  }
+
+  $variants: solid, soft, outline, surface, ghost, tonal;
+
+  @each $variant in $variants {
+    @each $color in $colors {
+      &--#{$variant}--#{$color} {
+        --bg-color: var(--vc-badge-#{$variant}-#{$color}-bg);
+        --border-color: var(--vc-badge-#{$variant}-#{$color}-border);
+        --text-color: var(--vc-badge-#{$variant}-#{$color}-text);
+        --vc-icon-color: var(--vc-badge-#{$variant}-#{$color}-icon);
+
+        // A dot has no text, so its fill alone carries the status and owes 3:1 (WCAG 1.4.11).
+        @if $variant == solid {
+          &#{$dot} {
+            --bg-color: var(--color-vc-background-solid-#{$color}, var(--color-#{$color}-700));
+            --border-color: var(--color-vc-border-solid-#{$color}, var(--color-#{$color}-700));
+          }
+        }
+      }
+    }
+  }
+
+  &__content {
+    @apply grow text-center self-center [word-break:break-word];
+
+    &:has(.vc-icon) {
+      @apply flex items-center gap-[--gap];
+    }
+
+    &:not(:has(.vc-icon:first-child)) {
+      @apply ps-0.5;
+    }
+
+    &:not(:has(.vc-icon:last-child)) {
+      @apply pe-0.5;
+    }
+
+    #{$truncate} & {
+      @apply min-w-0 max-w-full truncate;
+    }
+
+    #{$square} & {
+      @apply justify-center;
+    }
+
+    & > * {
+      @apply text-start;
+
+      #{$truncate} & {
+        @apply truncate;
+      }
+    }
+  }
+}
+</style>
