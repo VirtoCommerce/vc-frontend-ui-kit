@@ -1,0 +1,28 @@
+# src/ mirrors client-app/ui-kit of vc-frontend: its ui-kit-sync workflow pushes it straight to main.
+# A pull request that changes src/ would be overwritten by the next sync, so it fails here.
+name: Guard mirrored src
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  src-is-mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The pull_request checkout is a merge commit: its first parent is the base branch.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Fail if the pull request changes src/
+        run: |
+          changed=$(git diff --name-only HEAD^1 HEAD -- src/)
+          if [ -n "$changed" ]; then
+            echo "::error::src/ is a mirror of client-app/ui-kit in vc-frontend; the next sync overwrites any change here. Change ui-kit with a pull request to vc-frontend."
+            printf '%s\n' "$changed"
+            exit 1
+          fi
