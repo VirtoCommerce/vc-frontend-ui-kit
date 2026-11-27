@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  // Stories are checked with the Storybook setup.
+  "include": ["src/**/*", "shims/*.d.ts", "env.d.ts", "vite/*.d.ts", "vitest.config.ts"],
+  "exclude": ["src/**/*.stories.ts"],
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@/ui-kit": ["./src"],
+      "@/ui-kit/*": ["./src/*"]
+    }
+  }
+}

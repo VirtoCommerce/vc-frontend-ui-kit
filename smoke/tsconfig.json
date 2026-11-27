@@ -1,0 +1,12 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": ["src/**/*", "client-app/**/*", "node_modules/@vc-frontend/ui-kit/dist/**/*.d.ts"],
+  "compilerOptions": {
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@/ui-kit": ["./client-app/ui-kit", "./node_modules/@vc-frontend/ui-kit/dist"],
+      "@/ui-kit/*": ["./client-app/ui-kit/*", "./node_modules/@vc-frontend/ui-kit/dist/*"]
+    }
+  }
+}
